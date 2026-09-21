@@ -1,39 +1,33 @@
-# Politique de sécurité
+# Security policy
 
-## Signaler une vulnérabilité
+## Reporting a vulnerability
 
-Merci de ne pas ouvrir de ticket public. Utilisez le bouton « Report a
-vulnerability » de l'onglet **Security** du dépôt : le signalement reste privé
-entre vous et le mainteneur. Décrivez ce que vous avez observé, comment le
-reproduire et l'impact que vous imaginez.
+Please do not open a public issue. Use the **Report a vulnerability** button in
+the **Security** tab of the repository: the report stays private between you and
+the maintainer. Describe what you saw, how to reproduce it and the impact you
+imagine.
 
-*English: please report vulnerabilities privately with the "Report a
-vulnerability" button in the Security tab, not through a public issue.*
+This project is maintained by one person, so a reply can take a few days.
 
-Le projet est maintenu par une seule personne : la réponse peut prendre
-quelques jours.
+## What is in scope
 
-## Ce qui est concerné
-
-- le harnais `jev-zork` (`src/jev_zork/`), le lecteur de replay (`replay/`) et
-  le script de rendu vidéo (`video/render_video.py`) ;
-- les scripts d'installation (`scripts/`, `jouer.cmd`).
+- the `jev-zork` harness (`src/jev_zork/`), the replay player (`replay/`) and
+  the video renderer (`video/render_video.py`);
+- the setup scripts (`scripts/`, `play.cmd`).
 
 ## Secrets
 
-- La clé TypeSafe se met dans `.env`, jamais dans le code, un ticket ou une
-  capture d'écran. `.env` et ses variantes (`.env.*`, hors `.env.example`) sont
-  ignorés par git.
-- `jev-zork` ne lit que `TYPESAFE_API_KEY` dans `.env`, et la variable
-  d'environnement du shell, si elle existe, l'emporte. Un `.env` piégé ne peut
-  donc pas rediriger l'API vers un autre serveur.
-- Les journaux (`runs/*.jsonl`) contiennent le texte de la partie, les
-  identifiants de requête et les tokens, jamais la clé. Ils ne sont pas
-  versionnés.
-- Si vous trouvez une clé dans l'historique du dépôt, dans un ticket ou dans un
-  journal, signalez-le en privé comme ci-dessus, et régénérez-la sur
+- The TypeSafe API key goes in `.env`, never in code, an issue or a screenshot.
+  `.env` and its variants (`.env.*`, except `.env.example`) are ignored by git.
+- `jev-zork` only reads `TYPESAFE_API_KEY` from `.env`, and the environment
+  variable of the shell, if it is set, wins. A booby-trapped `.env` therefore
+  cannot redirect the API to another server.
+- Game logs (`runs/*.jsonl`) contain the game text, request ids and token counts,
+  never the key. They are not versioned.
+- If you find a key in the history of the repository, in an issue or in a log,
+  report it privately as described above, and regenerate it at
   console.typesafe.ai/keys.
 
-## Versions prises en charge
+## Supported versions
 
-Seule la dernière version de la branche `main` reçoit des correctifs.
+Only the latest version of the `main` branch receives fixes.

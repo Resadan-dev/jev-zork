@@ -1,18 +1,18 @@
 [project]
 name = "jev-zork"
 version = "0.1.0"
-description = "Jev (TypeSafe System One) joue à Zork I : un Choice par coup sur les actions valides de Jericho."
+description = "Jev (TypeSafe System One) plays Zork I: one Choice per move over Jericho's valid actions."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
-    # Jericho ne se compile que sous Linux ou macOS : sous Windows, on passe par WSL.
+    # Jericho only builds on Linux or macOS: on Windows, go through WSL.
     "jericho>=3.3.1; sys_platform != 'win32'",
-    # Jericho charge ce modèle spaCy pour repérer les objets d'une pièce ; sans lui,
-    # il le télécharge tout seul au premier coup. On le fige ici.
+    # Jericho loads this spaCy model to spot the objects in a room; without it, it
+    # downloads it by itself on the first move. We pin it here.
     "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl ; sys_platform != 'win32'",
-    # Le SDK a déjà cassé son API deux fois en une semaine : on reste sur la 0.7.
+    # The SDK broke its API twice in one week: stay on 0.7.
     "typesafe-sdk>=0.7,<0.8",
     "rich>=13",
     "python-dotenv>=1.0",
@@ -32,7 +32,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling>=1.27"]  # 1.27 : champ license en expression SPDX (PEP 639)
+requires = ["hatchling>=1.27"]  # 1.27: license field as an SPDX expression (PEP 639)
 build-backend = "hatchling.build"
 
 [tool.hatch.metadata]
@@ -45,7 +45,7 @@ packages = ["src/jev_zork"]
 testpaths = ["tests"]
 addopts = "-q"
 markers = [
-    "jericho: nécessite Jericho et la ROM de Zork I (WSL, Linux ou macOS)",
+    "jericho: needs Jericho and the Zork I ROM (WSL, Linux or macOS)",
 ]
 
 [tool.coverage.run]

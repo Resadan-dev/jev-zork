@@ -2,16 +2,16 @@
 # requires-python = ">=3.10"
 # dependencies = ["playwright>=1.47,<2"]
 # ///
-"""Rend la vidéo d'une partie à partir de son journal, image par image.
+"""Renders the video of a game from its log, frame by frame.
 
-Ouvre replay/index.html en mode capture dans un navigateur sans interface
-(Chrome, Edge ou Chromium), pose le lecteur à chaque instant t, capture
-l'écran et passe l'image à ffmpeg. Le rendu ne dépend pas de la vitesse du
-poste : aucune image n'est sautée.
+Opens replay/index.html in capture mode in a headless browser (Chrome, Edge or
+Chromium), sets the player to each instant t, takes a screenshot and pipes the
+image to ffmpeg. Rendering does not depend on the speed of the machine: no
+frame is ever skipped.
 
-    uv run video/render_video.py runs/20260921-081503-jev.jsonl --to 30
-    uv run video/render_video.py runs/20260921-081503-jev.jsonl --format carre --gif
-    uv run video/render_video.py runs/20260921-081503-jev.jsonl --snapshot 12 --snapshot 40
+    uv run video/render_video.py runs/<game>.jsonl --from 110 --to 138 --speed 1.2
+    uv run video/render_video.py runs/<game>.jsonl --format square --gif
+    uv run video/render_video.py runs/<game>.jsonl --snapshot 12 --snapshot 40
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REPLAY = ROOT / "replay" / "index.html"
 OUT_DIR = ROOT / "video" / "out"
-SIZES = {"paysage": (1920, 1080), "carre": (1080, 1080), "vertical": (1080, 1350)}
+SIZES = {"landscape": (1920, 1080), "square": (1080, 1080), "vertical": (1080, 1350)}
 BROWSERS = ("chrome", "msedge", "chromium")
 GIF_FILTER = (
     "fps=12,scale=720:-1:flags=lanczos,split[a][b];"
@@ -36,19 +36,22 @@ GIF_FILTER = (
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Rend la vidéo d'une partie de jev-zork à partir de son journal.")
-    parser.add_argument("journal", type=Path, help="journal JSONL écrit par jev-zork (dossier runs/)")
-    parser.add_argument("--out", type=Path, help="fichier MP4 (défaut : video/out/<journal>-<format>.mp4)")
-    parser.add_argument("--from", dest="first", type=int, default=1, help="premier tour montré (défaut : 1)")
-    parser.add_argument("--to", dest="last", type=int, default=None, help="dernier tour montré (défaut : le dernier)")
+    parser = argparse.ArgumentParser(description="Renders the video of a jev-zork game from its log.")
+    parser.add_argument("journal", type=Path, help="JSONL log written by jev-zork (runs/ folder)")
+    parser.add_argument("--out", type=Path, help="MP4 file (default: video/out/<log>-<format>.mp4)")
+    parser.add_argument("--from", dest="first", type=int, default=1, help="first turn shown (default: 1)")
+    parser.add_argument("--to", dest="last", type=int, default=None, help="last turn shown (default: the last one)")
     parser.add_argument(
-        "--format", choices=sorted(SIZES), default="paysage", help="paysage 1920×1080 (défaut), carre, vertical"
+        "--format",
+        choices=sorted(SIZES),
+        default="landscape",
+        help="landscape 1920×1080 (default), square 1080×1080 or vertical 1080×1350",
     )
-    parser.add_argument("--fps", type=int, default=30, help="images par seconde (défaut : 30)")
-    parser.add_argument("--speed", type=float, default=1.0, help="rythme du replay : 2 va deux fois plus vite")
-    parser.add_argument("--gif", action="store_true", help="produit aussi un GIF allégé (720 px, 12 images/s)")
+    parser.add_argument("--fps", type=int, default=30, help="frames per second (default: 30)")
+    parser.add_argument("--speed", type=float, default=1.0, help="pace of the replay: 2 goes twice as fast")
+    parser.add_argument("--gif", action="store_true", help="also produce a light GIF (720 px, 12 frames/s)")
     parser.add_argument(
-        "--bare", action="store_true", help="sans carton d'ouverture ni de fin : pour un GIF court qui boucle"
+        "--bare", action="store_true", help="no opening or closing card: for a short GIF that loops"
     )
     parser.add_argument(
         "--snapshot",
@@ -56,7 +59,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="append",
         default=[],
         metavar="T",
-        help="n'enregistre qu'une image PNG à l'instant T, en secondes (répétable), pour vérifier le rendu",
+        help="only save a PNG image at instant T, in seconds (repeatable), to check the rendering",
     )
     parser.add_argument(
         "--snapshot-turn",
@@ -64,23 +67,23 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="append",
         default=[],
         metavar="N",
-        help="comme --snapshot, sur le tour N du journal, une fois la décision posée (répétable) : une image de couverture",
+        help="like --snapshot, at turn N of the log, once the decision is made (repeatable): a cover image",
     )
     parser.add_argument(
         "--browser",
         choices=("auto", *BROWSERS),
         default="auto",
-        help="navigateur sans interface : auto (défaut : Chrome, puis Edge, puis Chromium)",
+        help="headless browser: auto (default: Chrome, then Edge, then Chromium)",
     )
-    parser.add_argument("--ffmpeg", default="ffmpeg", help="chemin de ffmpeg (défaut : celui du PATH)")
+    parser.add_argument("--ffmpeg", default="ffmpeg", help="path to ffmpeg (default: the one on PATH)")
     args = parser.parse_args(argv)
     if args.fps < 1 or args.speed <= 0:
-        parser.error("--fps doit valoir au moins 1 et --speed être positif")
+        parser.error("--fps must be at least 1 and --speed must be positive")
     return args
 
 
 def launch(playwright, choice: str):
-    """Lance le premier navigateur disponible : Chrome, Edge, puis le Chromium de Playwright."""
+    """Launches the first available browser: Chrome, Edge, then Playwright's Chromium."""
     channels = BROWSERS if choice == "auto" else (choice,)
     failures = []
     for channel in channels:
@@ -88,12 +91,12 @@ def launch(playwright, choice: str):
             if channel == "chromium":
                 return playwright.chromium.launch()
             return playwright.chromium.launch(channel=channel)
-        except Exception as error:  # Playwright ne lève qu'une Error générique ici.
-            failures.append(f"  {channel} : {str(error).splitlines()[0]}")
+        except Exception as error:  # Playwright only raises a generic Error here.
+            failures.append(f"  {channel}: {str(error).splitlines()[0]}")
     raise SystemExit(
-        "Aucun navigateur utilisable :\n"
+        "No usable browser:\n"
         + "\n".join(failures)
-        + "\nInstallez Chrome, ou le Chromium de Playwright : uv run --with playwright playwright install chromium"
+        + "\nInstall Chrome, or Playwright's Chromium: uv run --with playwright playwright install chromium"
     )
 
 
@@ -101,7 +104,7 @@ def open_replay(page, text: str, name: str, first: int, last: int | None, speed:
     page.goto(f"{REPLAY.as_uri()}?capture=1")
     page.wait_for_function("() => window.JevReplay !== undefined")
     info = page.evaluate("([text, name]) => window.JevReplay.load(text, name)", [text, name])
-    # Sans cartons, la vidéo commence sur l'action : c'est ce qu'il faut à un GIF qui boucle.
+    # Without cards, the video starts on the action: what a looping GIF needs.
     pacing = {"speed": speed, **({"intro": 0, "outro": 0} if bare else {})}
     duration = page.evaluate(
         "([first, last, pacing]) => window.JevReplay.setRange(first, last, pacing)",
@@ -112,19 +115,19 @@ def open_replay(page, text: str, name: str, first: int, last: int | None, speed:
 
 
 def turn_targets(page, turns: list[int]) -> list[tuple[str, float]]:
-    """Les instants des tours demandés ; un tour hors de l'extrait donne un message clair."""
+    """The instants of the requested turns; a turn outside the excerpt gives a clear message."""
     targets = []
     for turn in turns:
         try:
             instant = page.evaluate("(n) => window.JevReplay.turnTime(n)", turn)
-        except Exception as error:  # Playwright ne lève qu'une Error générique ici.
-            raise SystemExit(f"--snapshot-turn {turn} : {str(error).splitlines()[0]}") from error
-        targets.append((f"tour{turn:03d}", instant))
+        except Exception as error:  # Playwright only raises a generic Error here.
+            raise SystemExit(f"--snapshot-turn {turn}: {str(error).splitlines()[0]}") from error
+        targets.append((f"turn{turn:03d}", instant))
     return targets
 
 
 def snapshots(page, targets: list[tuple[str, float]], stem: str) -> list[Path]:
-    """Une image PNG par cible (suffixe du nom, instant en secondes)."""
+    """One PNG image per target (file name suffix, instant in seconds)."""
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     paths = []
     for suffix, instant in targets:
@@ -141,7 +144,7 @@ def encode(page, duration: float, fps: int, out: Path, ffmpeg: str) -> None:
     command = [
         ffmpeg, "-y", "-loglevel", "error",
         "-f", "image2pipe", "-framerate", str(fps), "-c:v", "mjpeg", "-i", "-",
-        # Les JPEG sont en plage complète : on repasse en yuv420p standard, lu partout (LinkedIn compris).
+        # JPEG frames are full range: convert back to standard yuv420p (tv range), which plays everywhere.
         "-vf", "scale=in_range=pc:out_range=tv,format=yuv420p", "-color_range", "tv",
         "-c:v", "libx264", "-preset", "slow", "-crf", "18",
         "-movflags", "+faststart", str(out),
@@ -153,13 +156,13 @@ def encode(page, duration: float, fps: int, out: Path, ffmpeg: str) -> None:
             page.evaluate("(t) => window.JevReplay.renderAt(t)", index / fps)
             process.stdin.write(page.screenshot(type="jpeg", quality=95))
             if index % (fps * 10) == 0:
-                print(f"  {index / fps:6.1f} s / {duration:.1f} s de vidéo", flush=True)
+                print(f"  {index / fps:6.1f} s / {duration:.1f} s of video", flush=True)
     finally:
         process.stdin.close()
         code = process.wait()
     if code != 0:
-        raise SystemExit(f"ffmpeg a échoué (code {code}) : {' '.join(command)}")
-    print(f"{frames} images en {time.monotonic() - started:.0f} s → {out}")
+        raise SystemExit(f"ffmpeg failed (code {code}): {' '.join(command)}")
+    print(f"{frames} frames in {time.monotonic() - started:.0f} s → {out}")
 
 
 def make_gif(ffmpeg: str, video: Path) -> Path:
@@ -172,11 +175,11 @@ def make_gif(ffmpeg: str, video: Path) -> Path:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     if not args.journal.is_file():
-        raise SystemExit(f"Journal introuvable : {args.journal}")
+        raise SystemExit(f"Log not found: {args.journal}")
     ffmpeg = shutil.which(args.ffmpeg)
     still_images = bool(args.snapshot or args.snapshot_turn)
     if not still_images and ffmpeg is None:
-        raise SystemExit("ffmpeg introuvable : installez-le (winget install Gyan.FFmpeg) ou passez --ffmpeg.")
+        raise SystemExit("ffmpeg not found: install it (winget install Gyan.FFmpeg) or pass --ffmpeg.")
     from playwright.sync_api import sync_playwright
 
     width, height = SIZES[args.format]
@@ -190,7 +193,7 @@ def main(argv: list[str] | None = None) -> int:
         page.on("pageerror", lambda error: problems.append(str(error)))
         page.on("console", lambda message: problems.append(message.text) if message.type == "error" else None)
         duration = open_replay(page, text, args.journal.name, args.first, args.last, args.speed, args.bare)
-        print(f"Replay de {duration:.1f} s ({args.format}, {width}×{height}, {args.fps} images/s)")
+        print(f"Replay of {duration:.1f} s ({args.format}, {width}×{height}, {args.fps} frames/s)")
         if still_images:
             targets = [(f"t{instant:07.2f}", instant) for instant in args.snapshot]
             targets += turn_targets(page, args.snapshot_turn)
@@ -202,7 +205,7 @@ def main(argv: list[str] | None = None) -> int:
                 make_gif(ffmpeg, out)
         browser.close()
     if problems:
-        print("Erreurs relevées dans la page :", *problems, sep="\n  ", file=sys.stderr)
+        print("Errors reported by the page:", *problems, sep="\n  ", file=sys.stderr)
         return 1
     return 0
 

@@ -1,217 +1,242 @@
-# Jev joue à Zork
+# Jev plays Zork
 
-Jev, le modèle System One de [TypeSafe](https://typesafe.ai), joue à Zork I. À
-chaque tour, [Jericho](https://github.com/microsoft/jericho) fournit les actions
-valides et Jev répond à un seul Choice : quelle commande taper. On voit sa
-confiance, et le moment où il hésite entre « open mailbox » et « north ».
+Jev, the System One model from [TypeSafe](https://typesafe.ai), plays Zork I. On
+every turn, [Jericho](https://github.com/microsoft/jericho) provides the valid
+actions and Jev answers a single Choice: which command to type. You can see its
+confidence, and the moment it hesitates between "open mailbox" and "north".
 
-Trois pièces :
+> **Language.** The documentation is in English. The game dashboard, meaning
+> everything you watch while Jev plays (the terminal display, the replay player
+> and the videos), is in French. So are the messages printed by the command-line
+> tools (errors, warnings) and, for now, the code comments. What Zork itself
+> says is in English, of course. The words you will meet on the dashboard:
+>
+> | French | English |
+> |---|---|
+> | Jev hésite / Jev penche / Jev est sûr de lui | Jev hesitates / leans towards one option / is sure |
+> | Confiance | Confidence |
+> | Danger | Danger |
+> | Carte | Map |
+> | Intentions | Intents: what Jev judges most important right now |
+> | Tour, coup | Turn, move |
+> | Lieu | Location |
+> | Coût | Cost |
+> | Anti-boucle | Anti-loop |
+> | Fin de partie, fin de l'extrait | End of the game, end of the excerpt |
+> | Tableau | Table: the whole game, turn by turn |
 
-- **`jev-zork`**, le harnais : il fait jouer Jev et affiche ses barres de
-  confiance dans le terminal. Chaque tour est noté dans un journal JSONL.
-- **`replay/index.html`**, le lecteur : il rejoue un journal avec la carte des
-  lieux découverts, la courbe de confiance et les intentions, tour par tour.
-- **`video/render_video.py`**, la vidéo : il filme le lecteur image par image
-  et produit un MP4 (et un GIF) prêt pour LinkedIn.
+Three parts:
 
-## Comment ça marche
+- **`jev-zork`**, the harness: it makes Jev play and shows its confidence bars
+  in the terminal. Every turn is recorded in a JSONL log.
+- **`replay/index.html`**, the replay player: it replays a log with the map of
+  the places discovered, the confidence curve and the intents, turn by turn.
+- **`video/render_video.py`**, the video renderer: it films the player frame by
+  frame and produces an MP4 (and a GIF) ready for LinkedIn.
+
+## How it works
 
 ```
-Jericho ──► actions valides ──┐
-                              ├─► state + 3 questions ──► Jev ──► probabilités, confiance
-mémoire (8 derniers tours) ───┘                                          │
-                                                                         ▼
-Zork ◄── commande jouée ◄── anti-boucle (le code garde la main) ◄── distribution
+Jericho ──► valid actions ──┐
+                            ├─► state + 3 questions ──► Jev ──► probabilities, confidence
+memory (last 8 turns) ──────┘                                          │
+                                                                       ▼
+Zork ◄── command played ◄── anti-loop (the code stays in charge) ◄── distribution
 ```
 
-- **Jev ne fait que juger.** Chaque tour pose trois questions dans une seule
-  requête :
-  - un **Choice** sur les actions valides : les options sont les clés de
-    `criteria`, au plus 255 ;
-  - un **Noul** « danger » ;
-  - un **Choice** « intention » (explorer, ramasser, fouiller, résoudre,
-    combattre, fuir).
+- **Jev only judges.** Each turn asks three questions in a single request:
+  - a **Choice** over the valid actions: the options are the keys of
+    `criteria`, at most 255;
+  - a **Noul** "danger";
+  - a **Choice** "intent" (explore, collect, investigate, solve, fight, escape).
 
-  Les deux derniers ne servent qu'à la visualisation.
-- **La mémoire et l'anti-boucle sont dans le code.** Les 8 derniers tours
-  partent dans le state. Une action déjà tentée dans le même état du monde voit
-  sa probabilité divisée par deux à chaque essai : sans cela, n'importe quel
-  agent tourne en rond dans la forêt. Quand le code s'écarte de l'avis de Jev,
-  le terminal, le journal et le replay le disent.
-- **Les options parlent d'elles-mêmes.** Une sortie déjà empruntée porte sa
-  destination (« leads to North of House (visited 2 times) »). La doc de Jev
-  déconseille de le faire chercher ailleurs dans le state.
-- **Le state est en anglais, l'affichage en français.** Jev lit mieux l'anglais.
-  Dans le noir, il ne sait pas où il est, parce que le jeu ne le dit pas.
+  The last two are only used for the visualization.
+- **Memory and the anti-loop live in the code.** The last 8 turns go into the
+  state. An action already tried in the same world state has its probability
+  halved on every try: without this, any agent walks in circles in the forest.
+  When the code departs from Jev's opinion, the terminal, the log and the replay
+  say so.
+- **Options describe themselves.** An exit already taken carries its
+  destination ("leads to North of House (visited 2 times)"). Jev's documentation
+  advises against making it look elsewhere in the state.
+- **The state is in English, the display in French.** Jev reads English better.
+  In the dark, it does not know where it is, because the game does not say.
 
 ## Installation (Windows + WSL)
 
-Jericho ne tourne que sous Linux ou macOS. Sous Windows, tout passe par WSL
-(Ubuntu), sans `sudo` : `uv` s'installe dans `~/.local/bin` et apporte son
-propre Python 3.12.
+Jericho only runs on Linux or macOS. On Windows, everything goes through WSL
+(Ubuntu), without `sudo`: `uv` installs into `~/.local/bin` and brings its own
+Python 3.12.
 
 ```bat
-jouer installer
+play install
 ```
 
-Le script `scripts/setup_wsl.sh` fait tout :
+(In PowerShell, type `.\play` instead of `play`.)
 
-- il installe `uv` si besoin ;
-- il crée l'environnement Python dans `~/.venvs/jev-zork` (Jericho, SDK
-  TypeSafe, spaCy et son modèle) ;
-- il télécharge `roms/zork1.z5` depuis la suite de jeux de Jericho, en
-  vérifiant son empreinte MD5 ;
-- il lance les tests.
+The script `scripts/setup_wsl.sh` does everything:
 
-Sous Linux ou macOS : `scripts/setup_wsl.sh`, puis `scripts/play.sh` à la place
-de `jouer`.
+- it installs `uv` if needed;
+- it creates the Python environment in `~/.venvs/jev-zork` (Jericho, TypeSafe
+  SDK, spaCy and its model);
+- it downloads `roms/zork1.z5` from Jericho's game suite, checking its MD5
+  hash;
+- it runs the tests.
 
-La ROM n'est pas versionnée. Il faut `gcc` et `make`, car Jericho se compile.
-Sous Ubuntu : `sudo apt install build-essential`.
+On Linux or macOS: `scripts/setup_wsl.sh`, then `scripts/play.sh` instead of
+`play`.
 
-## La clé TypeSafe
+The ROM is not versioned. You need `gcc` and `make`, because Jericho is
+compiled. On Ubuntu: `sudo apt install build-essential`.
 
-Copiez `.env.example` en `.env` et collez-y votre clé
-(<https://console.typesafe.ai/keys>) :
+## The TypeSafe key
+
+Copy `.env.example` to `.env` and paste your key in it
+(<https://console.typesafe.ai/keys>):
 
 ```
 TYPESAFE_API_KEY=…
 ```
 
-`.env` n'est jamais versionné, pas plus que ses variantes (`.env.*`, hors
-`.env.example`). Sans clé, `jev-zork` s'arrête et le dit.
+`.env` is never versioned, nor are its variants (`.env.*`, except
+`.env.example`). Without a key, `jev-zork` stops and says so.
 
-Sous Windows, le Bloc-notes ajoute volontiers `.txt` à un nom sans extension :
-le fichier devient `.env.txt` et n'est pas lu. `jev-zork` le détecte et dit de
-le renommer.
+On Windows, Notepad likes to add `.txt` to a name without an extension: the file
+becomes `.env.txt` and is not read. `jev-zork` detects this and tells you to
+rename it.
 
-`jev-zork` ne lit dans `.env` que `TYPESAFE_API_KEY`, et la variable
-d'environnement du shell, si elle existe, l'emporte. Un `.env` glissé dans un
-dossier cloné ne peut donc pas rediriger l'API (`TYPESAFE_BASE_URL`) pour
-détourner votre vraie clé.
+`jev-zork` only reads `TYPESAFE_API_KEY` from `.env`, and the environment
+variable of the shell, if it exists, wins. A `.env` slipped into a cloned folder
+therefore cannot redirect the API (`TYPESAFE_BASE_URL`) to steal your real key.
+Any other `TYPESAFE_*` variable found in `.env` is ignored, and `jev-zork` says
+so: set it in your shell instead.
 
-## Jouer
+## Playing
 
 ```bat
-jouer --mock --steps 20          :: sans clé : tirage au hasard, ce n'est PAS Jev
-jouer --delay 0.6 --steps 150    :: Jev, avec une pause pour pouvoir lire
+play --mock --steps 20          :: no key: random draw, this is NOT Jev
+play --delay 0.6 --steps 150    :: Jev, with a pause so you can read
 ```
 
-| Option | Rôle | Défaut |
+| Option | Role | Default |
 |---|---|---|
-| `--steps` | coups au plus | 150 |
-| `--delay` | pause entre deux coups, en secondes | 0 |
-| `--mock` | tirage au hasard au lieu de Jev, pour tester sans clé | non |
-| `--model` | modèle TypeSafe | `jev-latest` |
-| `--seed` | graine de Jericho (et du tirage `--mock`) | 12, celle du walkthrough |
-| `--history` | tours envoyés à Jev dans le state | 8 |
-| `--penalty` | facteur appliqué par essai déjà fait (anti-boucle) | 0.5 |
-| `--floor` | probabilité plancher avant l'anti-boucle | 0.01 |
-| `--budget-usd` | arrête la partie au-delà de ce coût | 0.25 |
-| `--top` | options affichées par coup | 6 |
-| `--quiet` | n'affiche que le début et la fin | non |
+| `--steps` | maximum number of moves | 150 |
+| `--delay` | pause between two moves, in seconds | 0 |
+| `--mock` | random draw instead of Jev, to test without a key | off |
+| `--model` | TypeSafe model | `jev-latest` |
+| `--seed` | seed for Jericho (and for the `--mock` draw) | 12, the walkthrough's |
+| `--history` | turns sent to Jev in the state | 8 |
+| `--penalty` | factor applied per past try (anti-loop) | 0.5 |
+| `--floor` | floor probability before the anti-loop | 0.01 |
+| `--budget-usd` | stop the game beyond this cost | 0.25 |
+| `--top` | options shown per move | 6 |
+| `--quiet` | only show the start and the end | off |
 
-Le mode `--mock` est annoncé partout : dans le terminal, dans le journal et
-dans la vidéo. Il ne remplace jamais une partie de Jev.
+`--mock` is announced everywhere: in the terminal, in the log and in the video.
+It never stands in for a Jev game.
 
-**N'attendez pas un gros score.** Zork I se joue sur 350 points, et Jev ne
-planifie rien : il juge chaque coup sur ce qu'il voit. Sur la partie de
-référence (voir « Mesures réelles »), il a marqué 44 points en 150 coups, sans
-mourir, mais il a mis 116 coups à entrer dans la maison. C'est justement ce
-qu'il y a de bon à regarder avec les barres de confiance.
+**Don't expect a high score.** Zork I is worth 350 points, and Jev plans
+nothing: it judges each move from what it sees. In the reference game (see
+"Measurements"), it scored 44 points in 150 moves without dying, but it took
+116 moves to get into the house. That is exactly what makes the confidence bars
+worth watching.
 
-## Le journal
+## The log
 
-Chaque partie écrit `runs/AAAAMMJJ-HHMMSS-<jev|mock>.jsonl` :
+Each game writes `runs/YYYYMMDD-HHMMSS-<jev|mock>.jsonl` (the time is UTC):
 
-- une ligne d'en-tête (`run`) : modèle, graine, réglages, prix ;
-- une ligne par tour (`turn`) : ce que Jev a vu (`observation`, `state`), les
-  options et leurs notes, ses `probabilities`, sa `confidence`, son `choice`,
-  la distribution corrigée par l'anti-boucle (`adjusted`, `tries`), l'`action`
-  jouée, `danger`, `intent`, la réponse du jeu, la latence, les tokens, le coût
-  et le `request_id` ;
-- une ligne de fin (`end`) : la raison de l'arrêt, le score et le coût total.
+- a header line (`run`): model, seed, settings, price;
+- one line per turn (`turn`): what Jev saw (`observation`, `state`), the options
+  and their notes, its `probabilities`, its `confidence`, its `choice`, the
+  distribution corrected by the anti-loop (`adjusted`, `tries`), the `action`
+  played, `danger`, `intent`, the game's response, latency, tokens, cost and the
+  `request_id`;
+- an end line (`end`): the reason the game stopped, the score and the total
+  cost.
 
-Le fichier est écrit ligne à ligne : une partie interrompue garde ses tours.
+The file is written line by line: an interrupted game keeps its turns.
 
-## Le replay
+## The replay
 
-Ouvrez `replay/index.html` d'un double-clic et déposez-y un journal. Il ne faut
-pas de serveur.
+Open `replay/index.html` by double-clicking it and drop a log onto it. No server
+is needed.
 
-- Espace : lecture ou pause. Flèches : tour précédent ou suivant.
-- Survolez les courbes pour lire les valeurs, cliquez pour sauter à un tour.
-- « Tableau » : toute la partie en tableau, tour par tour.
+- Space: play or pause. Arrows: previous or next turn.
+- Hover the curves to read the values, click to jump to a turn.
+- "Tableau": the whole game as a table, turn by turn.
 
-Avec un serveur local, un journal s'ouvre aussi par l'adresse :
-`python -m http.server 8841`, puis
+With a local server, a log can also be opened by its address: run
+`python -m http.server 8841`, then open
 <http://127.0.0.1:8841/replay/index.html?log=../runs/….jsonl>.
 
-## La vidéo
+## The video
 
-Sous Windows, avec `uv`, Chrome (ou Edge) et `ffmpeg`. La vidéo de la partie de
-référence (voir « Mesures réelles ») :
+On Windows, with `uv`, Chrome (or Edge) and `ffmpeg`. For a game saved as
+`runs\20260921-101451-jev.jsonl`:
 
 ```bat
-uv run video/render_video.py runs\20260921-101451-jev.jsonl --from 110 --to 138 --speed 1.2 --format carre
+uv run video/render_video.py runs\20260921-101451-jev.jsonl --from 110 --to 138 --speed 1.2 --format square
 ```
 
-Le script ouvre le lecteur dans un Chrome sans interface. Il le pose à chaque
-instant et passe chaque image à ffmpeg : aucune image n'est sautée, quelle que
-soit la vitesse du poste. Un coup sûr passe vite, une hésitation s'attarde.
+The log name is only an example: the reference game's log is not published, so
+use one of your own.
 
-| Option | Rôle |
+The script opens the player in a headless Chrome. It sets it to each instant and
+pipes every frame to ffmpeg: no frame is skipped, whatever the speed of the
+machine. A sure move goes by quickly, a hesitation lingers.
+
+| Option | Role |
 |---|---|
-| `--from`, `--to` | l'extrait montré, en numéros de tour du journal. Pour LinkedIn, 25 à 30 coups font environ 1 min 30 |
-| `--format` | `paysage` (1920×1080), `carre` (1080×1080) ou `vertical` (1080×1350) |
-| `--speed` | rythme du replay : 1.5 va une fois et demie plus vite |
-| `--gif` | ajoute un GIF allégé (720 px, 12 images/s) |
-| `--bare` | sans carton d'ouverture ni de fin : pour un GIF court qui boucle |
-| `--snapshot T` | n'enregistre qu'une image PNG à l'instant T, pour vérifier le rendu |
-| `--snapshot-turn N` | comme `--snapshot`, sur le tour N du journal une fois la décision posée : une image de couverture |
+| `--from`, `--to` | the excerpt shown, as turn numbers of the log. For LinkedIn, 25 to 30 moves make about 1 min 30 |
+| `--format` | `landscape` (1920×1080), `square` (1080×1080) or `vertical` (1080×1350) |
+| `--speed` | pace of the replay: 1.5 goes one and a half times faster |
+| `--gif` | also produces a light GIF (720 px, 12 frames/s) |
+| `--bare` | no opening or closing card: for a short GIF that loops |
+| `--snapshot T` | only saves a PNG image at instant T, to check the rendering |
+| `--snapshot-turn N` | like `--snapshot`, at turn N of the log once the decision is made: a cover image |
 
-Les fichiers arrivent dans `video/out/`, qui n'est pas versionné. Durées
-mesurées : les 29 coups de 110 à 138, à la vitesse 1,2, font 88 s de vidéo ; le
-rendu prend environ 3 min 15 s en carré et 4 min 20 s en paysage. Un teaser de 15 s
-(`--from 133 --to 138 --bare --gif`) prend 28 s.
+Files land in `video/out/`, which is not versioned. Measured durations: the 29
+moves from 110 to 138, at speed 1.2, make 88 s of video; rendering takes about
+3 min 15 s in square and 4 min 20 s in landscape. A 15 s teaser
+(`--from 133 --to 138 --bare --gif`) takes 28 s.
 
-Choisissez l'extrait dans le journal : les coups où Jev hésite (`confidence`
-sous 0,5), où l'anti-boucle le corrige (`overridden`) ou où le score bouge
-(`reward`) font les meilleures images. La vidéo dit toujours d'où vient
-l'extrait (« coups 110 à 138 sur 150 »).
+Pick the excerpt from the log: the moves where Jev hesitates (`confidence` below
+0.5), where the anti-loop corrects it (`overridden`) or where the score moves
+(`reward`) make the best images. The video always says where the excerpt comes
+from ("coups 110 à 138 sur 150", that is moves 110 to 138 out of 150).
 
-Autre voie, plus brute : enregistrer le terminal avec `asciinema` et le
-convertir en GIF avec `agg`.
+A cruder route: record the terminal with `asciinema` and convert it to a GIF
+with `agg`.
 
-## Coût
+## Cost
 
-Jev 1.13 coûte 0,042 $ par million de tokens d'entrée, et la sortie est
-gratuite (<https://docs.typesafe.ai/models>). Mesuré sur la vraie API : 1 186
-tokens d'entrée par coup en moyenne (753 au premier coup, 1 607 au plus), donc
-**0,0075 $ pour une partie de 150 coups**. Le journal note les tokens réels de
-chaque tour. `--budget-usd` arrête la partie si le coût dépasse le budget.
+Jev 1.13 costs $0.042 per million input tokens, and output is free
+(<https://docs.typesafe.ai/models>). Measured on the real API: 1,186 input
+tokens per move on average (753 on the first move, 1,607 at most), so **$0.0075
+for a 150-move game**. The log records the real tokens of each turn.
+`--budget-usd` stops the game if the cost goes over budget.
 
-## Mesures réelles
+## Measurements
 
-Une partie de référence, le 2026-09-21, contre `jev-1.13.0` (`jev-latest`),
-graine 12 (celle de Jericho), 150 coups :
+A reference game, on 2026-09-21, against `jev-1.13.0` (`jev-latest`), seed 12
+(Jericho's), 150 moves:
 
-| Mesure | Valeur |
+| Measure | Value |
 |---|---|
-| Durée de la partie, démarrage de WSL et de Jericho compris | 61 s, soit environ 0,4 s par coup |
-| Latence de Jev par décision | 262 ms en moyenne, 316 ms au 95e centile, 714 ms au plus |
-| Coût | 0,0075 $ pour 177 915 tokens d'entrée |
-| Score | 44 sur 350, sans mourir ni changer de graine |
-| Confiance | moyenne de 0,37 ; sous 0,5 pour 65 coups sur 150 ; à 0,8 ou plus pour 11 seulement |
-| Anti-boucle | 12 corrections du choix de Jev |
-| Anomalies | aucune réponse refusée, aucun avertissement, aucune action de repli |
+| Game duration, WSL and Jericho startup included | 61 s, about 0.4 s per move |
+| Jev's latency per decision | 262 ms on average, 316 ms at the 95th percentile, 714 ms at most |
+| Cost | $0.0075 for 177,915 input tokens |
+| Score | 44 out of 350, without dying or changing the seed |
+| Confidence | average 0.37; below 0.5 for 65 moves out of 150; 0.8 or more for only 11 |
+| Anti-loop | 12 corrections of Jev's choice |
+| Anomalies | no refused answer, no warning, no fallback action |
 
-Le journal est dans `runs/` (non versionné). Les 44 points se sont joués entre
-les coups 116 et 150 : entrée dans la maison par la fenêtre (+10), trappe du
-salon vers la cave (+25), tableau de la galerie (+4), sortie est de la salle du
-troll (+5). Le mode `--delay` ne sert qu'à regarder la partie en direct : la
-vidéo règle son propre rythme à partir du journal, il ne faut donc pas l'utiliser
-pour la préparer.
+The log stayed in `runs/` on the machine that played the game: it is not
+versioned, so it is not in this repository. The 44 points were scored between
+moves 116 and 150: getting into the house through the window (+10), the
+living-room trap door down to the cellar (+25), the painting in the gallery
+(+4), the east exit of the troll room (+5). `--delay` is only for watching a game
+live: the video sets its own pace from the log, so do not use it to prepare one.
 
 ## Tests
 
@@ -220,59 +245,57 @@ wsl -d Ubuntu --cd . --exec bash -lc "~/.venvs/jev-zork/bin/python -m pytest --c
 node --test "replay/tests/*.test.js"
 ```
 
-- **Python** : les modules purs, le juge Jev à travers le vrai SDK contre un
-  faux serveur HTTP, et de vrais coups de Zork sous Jericho.
-- **JavaScript** : la logique du replay (journal, rythme, carte, intentions).
+- **Python**: the pure modules, the Jev judge through the real SDK against a
+  fake HTTP server, and real Zork moves under Jericho.
+- **JavaScript**: the replay logic (log, pacing, map, intents).
 
-## Limites connues
+## Known limits
 
-- Jericho propose les actions qui **changent l'état du monde** : il ne propose
-  ni `look`, ni `inventory`, ni les mots magiques. S'il ne trouve rien, le
-  harnais propose des commandes de base et le note dans le journal
-  (`fallback_actions`).
-- La carte place un lieu selon la direction prise pour y entrer. La géographie
-  de Zork n'est pas euclidienne : la forêt et le labyrinthe donnent des liens
-  qui se croisent.
-- Le Noul « danger » et le Choice « intention » ne pilotent rien. Ce sont des
-  lectures de la situation, pour la visualisation.
+- Jericho proposes the actions that **change the state of the world**: it does
+  not propose `look`, `inventory` or the magic words. If it finds nothing, the
+  harness proposes basic commands and notes it in the log (`fallback_actions`).
+- The map places a location according to the direction taken to reach it. Zork's
+  geography is not Euclidean: the forest and the maze produce links that cross.
+- The "danger" Noul and the "intent" Choice drive nothing. They are readings of
+  the situation, for the visualization.
 
-## Licence
+## License
 
-Le code de ce dépôt est sous licence MIT (voir `LICENSE`).
+The code in this repository is under the MIT license (see `LICENSE`).
 
-- **Jericho est sous GPL-2.0 ou ultérieure.** Le projet l'utilise sans le
-  contenir : chacun l'installe de son côté avec `scripts/setup_wsl.sh`. Une
-  distribution qui embarquerait les deux ensemble (image Docker, exécutable)
-  devrait respecter la GPL pour l'ensemble.
-- Les autres dépendances sont sous MIT ou BSD : SDK TypeSafe, rich,
-  python-dotenv, spaCy et son modèle.
-- **Zork I** est une œuvre d'Infocom, aujourd'hui propriété d'Activision. Son
-  code source est publié sous licence MIT dans le dépôt `historicalsource/zork1`.
-  Ce dépôt-ci ne contient pas la ROM : `scripts/setup_wsl.sh` la télécharge
-  depuis la suite de jeux de Jericho, en vérifiant son empreinte MD5.
-- Le lecteur de replay charge les polices IBM Plex (licence SIL OFL) depuis
-  Google Fonts : ouvrir `replay/index.html` envoie donc une requête à Google.
-- Projet indépendant, non affilié à TypeSafe ni à Activision. « Jev » est le
-  nom du modèle de TypeSafe.
+- **Jericho is under GPL-2.0 or later.** The project uses it without containing
+  it: everyone installs it on their own with `scripts/setup_wsl.sh`. A
+  distribution that bundled the two together (Docker image, executable) would
+  have to respect the GPL for the whole.
+- The other dependencies are under MIT or BSD: TypeSafe SDK, rich,
+  python-dotenv, spaCy and its model.
+- **Zork I** is a work by Infocom, now owned by Activision. Its source code is
+  published under the MIT license in the `historicalsource/zork1` repository.
+  This repository does not contain the ROM: `scripts/setup_wsl.sh` downloads it
+  from Jericho's game suite, checking its MD5 hash.
+- The replay player loads the IBM Plex fonts (SIL OFL license) from Google
+  Fonts: opening `replay/index.html` therefore sends a request to Google.
+- Independent project, not affiliated with TypeSafe or Activision. "Jev" is the
+  name of TypeSafe's model.
 
-## Sécurité
+## Security
 
-La clé TypeSafe ne vit que dans `.env`, qui n'est jamais versionné (ses
-variantes `.env.*` non plus). Les journaux de parties, la ROM et les vidéos ne
-le sont pas davantage. Pour signaler une vulnérabilité, voir `SECURITY.md`.
+The TypeSafe key only lives in `.env`, which is never versioned (nor are its
+`.env.*` variants). Game logs, the ROM and the videos are not versioned either.
+To report a vulnerability, see `SECURITY.md`.
 
-## Organisation
+## Layout
 
 ```
-src/jev_zork/      le harnais : game (Jericho), questions (state et questions),
-                   judges (Jev et mock), policy (anti-boucle), memory, journal,
-                   display (terminal), runner (boucle de jeu), cli
-tests/             tests Python (pytest)
-replay/            lecteur de replay : index.html, replay.css, replay-core.js
-                   (logique pure, testée), replay-ui.js (affichage)
+src/jev_zork/      the harness: game (Jericho), questions (state and questions),
+                   judges (Jev and mock), policy (anti-loop), memory, journal,
+                   display (terminal), runner (game loop), cli
+tests/             Python tests (pytest)
+replay/            replay player: index.html, replay.css, replay-core.js
+                   (pure logic, tested), replay-ui.js (display)
 video/             render_video.py (Playwright + ffmpeg)
 scripts/           setup_wsl.sh, play.sh
-jouer.cmd          lanceur Windows vers WSL
-LICENSE            licence MIT
-SECURITY.md        politique de sécurité
+play.cmd           Windows launcher for WSL
+LICENSE            MIT license
+SECURITY.md        security policy
 ```

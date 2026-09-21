@@ -1,4 +1,4 @@
-"""Ligne de commande : ``jev-zork`` (ou ``python -m jev_zork``)."""
+"""Command line: ``jev-zork`` (or ``python -m jev_zork``)."""
 
 from __future__ import annotations
 
@@ -31,41 +31,41 @@ EXIT_INTERRUPTED = 130
 def _positive_int(text: str) -> int:
     value = int(text)
     if value < 1:
-        raise argparse.ArgumentTypeError("doit valoir au moins 1")
+        raise argparse.ArgumentTypeError("must be at least 1")
     return value
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="jev-zork",
-        description="Jev (TypeSafe) joue à Zork I : un Choice par coup sur les actions valides de Jericho.",
+        description="Jev (TypeSafe) plays Zork I: one Choice per move over Jericho's valid actions.",
     )
-    parser.add_argument("--steps", type=_positive_int, default=150, help="coups au plus (défaut : 150)")
+    parser.add_argument("--steps", type=_positive_int, default=150, help="maximum number of moves (default: 150)")
     parser.add_argument(
-        "--delay", type=float, default=0.0, help="pause entre deux coups, en secondes, pour pouvoir lire (ex. 0.6)"
-    )
-    parser.add_argument(
-        "--mock", action="store_true", help="tirage au hasard au lieu de Jev, pour tester sans clé (ce n'est PAS Jev)"
-    )
-    parser.add_argument("--model", default="jev-latest", help="modèle TypeSafe (défaut : jev-latest)")
-    parser.add_argument(
-        "--seed", type=int, default=None, help="graine de Jericho et du tirage --mock (défaut Jericho : 12)"
-    )
-    parser.add_argument("--rom", type=Path, default=DEFAULT_ROM, help="ROM de Zork I (défaut : roms/zork1.z5)")
-    parser.add_argument("--history", type=int, default=8, help="tours envoyés à Jev dans le state (défaut : 8)")
-    parser.add_argument(
-        "--penalty", type=float, default=0.5, help="facteur appliqué par essai déjà fait, anti-boucle (défaut : 0.5)"
+        "--delay", type=float, default=0.0, help="pause between two moves, in seconds, so you can read (e.g. 0.6)"
     )
     parser.add_argument(
-        "--floor", type=float, default=0.01, help="probabilité plancher avant l'anti-boucle (défaut : 0.01)"
+        "--mock", action="store_true", help="random draw instead of Jev, to test without a key (this is NOT Jev)"
+    )
+    parser.add_argument("--model", default="jev-latest", help="TypeSafe model (default: jev-latest)")
+    parser.add_argument(
+        "--seed", type=int, default=None, help="seed for Jericho and for the --mock draw (Jericho's default: 12)"
+    )
+    parser.add_argument("--rom", type=Path, default=DEFAULT_ROM, help="Zork I ROM (default: roms/zork1.z5)")
+    parser.add_argument("--history", type=int, default=8, help="turns sent to Jev in the state (default: 8)")
+    parser.add_argument(
+        "--penalty", type=float, default=0.5, help="factor applied per past try, the anti-loop (default: 0.5)"
     )
     parser.add_argument(
-        "--budget-usd", type=float, default=0.25, help="arrête la partie au-delà de ce coût (défaut : 0.25)"
+        "--floor", type=float, default=0.01, help="floor probability before the anti-loop (default: 0.01)"
     )
-    parser.add_argument("--log-dir", type=Path, default=Path("runs"), help="dossier des journaux (défaut : runs)")
-    parser.add_argument("--top", type=_positive_int, default=6, help="options affichées par coup (défaut : 6)")
-    parser.add_argument("--quiet", action="store_true", help="n'affiche que le début et la fin")
-    parser.add_argument("--env-file", type=Path, default=Path(".env"), help="fichier de clé (défaut : .env)")
+    parser.add_argument(
+        "--budget-usd", type=float, default=0.25, help="stop the game beyond this cost (default: 0.25)"
+    )
+    parser.add_argument("--log-dir", type=Path, default=Path("runs"), help="folder for the logs (default: runs)")
+    parser.add_argument("--top", type=_positive_int, default=6, help="options shown per move (default: 6)")
+    parser.add_argument("--quiet", action="store_true", help="only show the start and the end")
+    parser.add_argument("--env-file", type=Path, default=Path(".env"), help="key file (default: .env)")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
 
