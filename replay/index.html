@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jev joue à Zork</title>
+  <meta name="description" content="Lecteur de replay : Jev (TypeSafe) joue à Zork I, et sa confiance s'affiche à chaque décision.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="replay.css">
+</head>
+<body data-state="empty">
+  <div class="app">
+    <header class="masthead">
+      <p class="brand">
+        <span class="brand-jev">Jev</span><span class="brand-cross" aria-hidden="true">×</span><span class="brand-zork">Zork I</span>
+      </p>
+      <dl class="status">
+        <div class="status-item"><dt>Tour</dt><dd id="st-turn">—</dd></div>
+        <div class="status-item status-place"><dt>Lieu</dt><dd id="st-place">—</dd></div>
+        <div class="status-item"><dt>Score</dt><dd id="st-score">—</dd></div>
+        <div class="status-item"><dt>Coût</dt><dd id="st-cost">—</dd></div>
+        <div class="status-item"><dt>Modèle</dt><dd id="st-model">—</dd></div>
+      </dl>
+      <p class="mock-flag" id="mock-flag" hidden><span aria-hidden="true">⚠</span> Mock : tirage au hasard, ce n'est pas Jev</p>
+    </header>
+
+    <main class="stage">
+      <section class="panel crt" aria-labelledby="crt-title">
+        <h2 class="panel-title" id="crt-title">Zork I <span class="panel-sub">l'écran que lit Jev</span></h2>
+        <div class="crt-screen">
+          <div class="terminal" id="terminal"></div>
+        </div>
+      </section>
+
+      <section class="panel mind" aria-labelledby="mind-title">
+        <h2 class="panel-title" id="mind-title">Ce que pense Jev <span class="panel-sub">un Choice sur les actions valides</span></h2>
+        <div class="mind-head">
+          <p class="verdict" id="verdict" data-level="idle">—</p>
+          <p class="confidence"><span class="confidence-value" id="confidence-value">—</span><span class="confidence-label">confiance</span></p>
+        </div>
+        <div class="gauge" aria-hidden="true">
+          <div class="gauge-track"><div class="gauge-fill" id="gauge-fill"></div></div>
+          <div class="gauge-scale"><span>hésite</span><span>penche</span><span>sûr</span></div>
+        </div>
+        <p class="options-caption" id="options-caption"></p>
+        <ol class="options" id="options"></ol>
+        <p class="options-more" id="options-more"></p>
+        <p class="loop-note" id="loop-note"></p>
+        <div class="danger">
+          <span class="danger-label">Danger</span>
+          <div class="danger-track"><div class="danger-fill" id="danger-fill"></div></div>
+          <span class="danger-value" id="danger-value">—</span>
+        </div>
+      </section>
+
+      <section class="panel map" aria-labelledby="map-title">
+        <h2 class="panel-title" id="map-title">Carte <span class="panel-sub">lieux découverts</span></h2>
+        <svg class="map-svg" id="map" role="img" aria-label="Carte des lieux découverts par Jev"></svg>
+      </section>
+
+      <section class="panel chart chart-confidence" aria-labelledby="conf-title">
+        <div class="chart-head">
+          <h2 class="panel-title" id="conf-title">Confiance et danger <span class="panel-sub">tour par tour</span></h2>
+          <ul class="legend">
+            <li><span class="key key-confidence" aria-hidden="true"></span>Confiance de Jev</li>
+            <li><span class="key key-danger" aria-hidden="true"></span>Danger (Noul)</li>
+            <li><span class="key key-points" aria-hidden="true"></span>Points marqués</li>
+          </ul>
+        </div>
+        <svg class="chart-svg" id="timeline" role="img" aria-label="Confiance et danger, tour par tour"></svg>
+      </section>
+
+      <section class="panel chart chart-intent" aria-labelledby="intent-title">
+        <div class="chart-head">
+          <h2 class="panel-title" id="intent-title">Intentions <span class="panel-sub">ce que Jev juge prioritaire</span></h2>
+          <ul class="legend" id="intent-legend"></ul>
+        </div>
+        <svg class="chart-svg" id="stream" role="img" aria-label="Intentions de Jev, tour par tour"></svg>
+      </section>
+    </main>
+
+    <footer class="controls" aria-label="Lecture">
+      <button type="button" class="control" id="btn-prev" title="Tour précédent (←)" aria-label="Tour précédent">⏮</button>
+      <button type="button" class="control control-play" id="btn-play" title="Lecture ou pause (espace)" aria-label="Lecture">▶</button>
+      <button type="button" class="control" id="btn-next" title="Tour suivant (→)" aria-label="Tour suivant">⏭</button>
+      <input type="range" class="scrubber" id="scrubber" min="0" max="1" step="0.01" value="0" aria-label="Position dans la partie">
+      <output class="clock" id="clock">0:00 / 0:00</output>
+      <label class="speed">Vitesse
+        <select id="speed">
+          <option value="0.5">0,5×</option>
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+          <option value="4">4×</option>
+        </select>
+      </label>
+      <button type="button" class="control control-text" id="btn-table">Tableau</button>
+      <label class="control control-text control-file">Ouvrir un journal<input type="file" id="file-input" accept=".jsonl,.json,application/json"></label>
+    </footer>
+  </div>
+
+  <div class="card intro-card" id="intro-card" aria-hidden="true">
+    <p class="card-kicker" id="intro-kicker">TypeSafe · System One</p>
+    <h1 class="card-title">Jev joue à <span class="card-zork">Zork I</span></h1>
+    <p class="card-lead">Un Choice par coup, sur les actions valides de Jericho.<br>Sa confiance s'affiche à chaque décision.</p>
+    <p class="card-meta" id="intro-meta"></p>
+    <p class="card-mock" id="intro-mock" hidden><span aria-hidden="true">⚠</span> Mock : tirage au hasard, ce n'est pas Jev qui joue</p>
+  </div>
+
+  <div class="card outro-card" id="outro-card" aria-hidden="true">
+    <p class="card-kicker" id="outro-kicker">Fin de partie</p>
+    <dl class="card-figures">
+      <div><dt>Score</dt><dd id="outro-score">—</dd></div>
+      <div><dt>Coups</dt><dd id="outro-turns">—</dd></div>
+      <div><dt>Lieux</dt><dd id="outro-places">—</dd></div>
+    </dl>
+    <ul class="card-facts" id="outro-facts"></ul>
+    <p class="card-mock" id="outro-mock" hidden><span aria-hidden="true">⚠</span> Mock : tirage au hasard, ce n'est pas Jev qui joue</p>
+  </div>
+
+  <div class="dropzone" id="dropzone">
+    <p class="dropzone-title">Déposez ici un journal de partie</p>
+    <p class="dropzone-hint">Un fichier <code>runs/…-jev.jsonl</code> écrit par <code>jev-zork</code>.</p>
+    <label class="control control-text control-file">Choisir un fichier<input type="file" id="file-input-drop" accept=".jsonl,.json,application/json"></label>
+    <p class="dropzone-error" id="drop-error" role="alert"></p>
+  </div>
+
+  <dialog class="table-view" id="table-view" aria-labelledby="table-title">
+    <div class="table-head">
+      <h2 id="table-title">La partie, tour par tour</h2>
+      <button type="button" class="control control-text" id="btn-close-table">Fermer</button>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th scope="col">Tour</th><th scope="col">Lieu</th><th scope="col">Action jouée</th><th scope="col">Choix de Jev</th><th scope="col">Confiance</th><th scope="col">Danger</th><th scope="col">Score</th></tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </dialog>
+
+  <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+
+  <script src="replay-core.js"></script>
+  <script src="replay-ui.js"></script>
+</body>
+</html>

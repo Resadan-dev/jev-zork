@@ -1,0 +1,21 @@
+# Environnements et caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+node_modules/
+
+# Secret : la clé TypeSafe ne quitte jamais le poste. Toute variante est ignorée
+# (Windows ajoute volontiers « .txt » : .env.txt), sauf le modèle sans clé.
+.env
+.env.*
+!.env.example
+
+# ROM de Zork I : téléchargée par scripts/setup_wsl.sh depuis la suite de jeux de Jericho
+roms/*.z5
+
+# Journaux de parties et rendus vidéo
+runs/
+video/out/

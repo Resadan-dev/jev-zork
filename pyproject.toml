@@ -1,0 +1,52 @@
+[project]
+name = "jev-zork"
+version = "0.1.0"
+description = "Jev (TypeSafe System One) joue à Zork I : un Choice par coup sur les actions valides de Jericho."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    # Jericho ne se compile que sous Linux ou macOS : sous Windows, on passe par WSL.
+    "jericho>=3.3.1; sys_platform != 'win32'",
+    # Jericho charge ce modèle spaCy pour repérer les objets d'une pièce ; sans lui,
+    # il le télécharge tout seul au premier coup. On le fige ici.
+    "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl ; sys_platform != 'win32'",
+    # Le SDK a déjà cassé son API deux fois en une semaine : on reste sur la 0.7.
+    "typesafe-sdk>=0.7,<0.8",
+    "rich>=13",
+    "python-dotenv>=1.0",
+]
+
+[project.scripts]
+jev-zork = "jev_zork.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/jev_zork"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "jericho: nécessite Jericho et la ROM de Zork I (WSL, Linux ou macOS)",
+]
+
+[tool.coverage.run]
+source = ["jev_zork"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 80
