@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import os
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional, Sequence
 
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 from rich.console import Console
 from rich.markup import escape
+from typesafe_sdk.constants import API_KEY_ENV
 
 from jev_zork import __version__
 from jev_zork.display import TerminalDisplay
@@ -76,12 +78,32 @@ def _env_hint(env_file: Path) -> str:
     return f" Windows a nommé votre fichier « {stray.name} » : renommez-le en « {env_file.name} »."
 
 
+def _load_key(env_file: Path) -> tuple[str, ...]:
+    """Lit la clé dans le fichier .env, et elle seule ; la variable du shell, si elle existe, l'emporte.
+
+    Charger tout le fichier laisserait un .env piégé (dans un dossier cloné) redéfinir
+    TYPESAFE_BASE_URL et détourner la vraie clé vers un autre serveur. Renvoie les autres
+    variables TYPESAFE_* du fichier, ignorées : l'appelant le dit à l'utilisateur.
+    """
+    if not env_file.is_file():
+        return ()
+    # utf-8-sig : le Bloc-notes de Windows peut écrire un BOM en tête de fichier.
+    values = dotenv_values(env_file, encoding="utf-8-sig")
+    if not os.environ.get(API_KEY_ENV) and values.get(API_KEY_ENV):
+        os.environ[API_KEY_ENV] = values[API_KEY_ENV]
+    return tuple(name for name in values if name != API_KEY_ENV and name.startswith("TYPESAFE_"))
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = build_parser().parse_args(argv)
     console = Console()
-    if args.env_file.is_file():
-        # utf-8-sig : le Bloc-notes de Windows peut écrire un BOM en tête de fichier.
-        load_dotenv(args.env_file, override=False, encoding="utf-8-sig")
+    ignored = _load_key(args.env_file)
+    if ignored:
+        note = (
+            f"Variables de {args.env_file.name} ignorées, seule {API_KEY_ENV} y est lue : "
+            f"{', '.join(ignored)}. Définissez-les dans le shell si vous en avez besoin."
+        )
+        console.print(escape(note), style="yellow")
     try:
         settings = Settings(
             steps=args.steps,

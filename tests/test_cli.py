@@ -51,6 +51,49 @@ def test_the_env_file_provides_the_key(tmp_path, no_key, capsys, prefix):
     assert "ROM introuvable" in capsys.readouterr().out
 
 
+def _forget(monkeypatch, *names):
+    """Enregistre l'absence de ces variables : si le code les crée, elles disparaissent en fin de test."""
+    for name in names:
+        monkeypatch.setenv(name, "a-retirer")
+        monkeypatch.delenv(name)
+
+
+def test_only_the_key_is_read_from_the_env_file(tmp_path, no_key, monkeypatch, capsys):
+    # Un .env piégé ne doit pas pouvoir rediriger l'API ni changer la journalisation.
+    others = ("TYPESAFE_BASE_URL", "TYPESAFE_LOG_LEVEL", "TYPESAFE_DEFAULT_MODEL")
+    _forget(monkeypatch, *others)
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "TYPESAFE_API_KEY=cle-de-test\nTYPESAFE_BASE_URL=https://pirate.example\n"
+        "TYPESAFE_LOG_LEVEL=debug\nTYPESAFE_DEFAULT_MODEL=autre\n",
+        encoding="utf-8",
+    )
+    main(["--rom", str(tmp_path / "absente.z5"), "--env-file", str(env_file), "--log-dir", str(tmp_path)])
+    assert os.environ["TYPESAFE_API_KEY"] == "cle-de-test"
+    for name in others:
+        assert name not in os.environ
+    # Elles sont ignorées, mais l'utilisateur en est prévenu, sans que la valeur soit affichée.
+    out = " ".join(capsys.readouterr().out.split())
+    assert "seule TYPESAFE_API_KEY y est lue" in out
+    assert "TYPESAFE_BASE_URL, TYPESAFE_LOG_LEVEL, TYPESAFE_DEFAULT_MODEL" in out
+    assert "pirate.example" not in out
+
+
+def test_a_clean_env_file_raises_no_warning(tmp_path, no_key, capsys):
+    env_file = tmp_path / ".env"
+    env_file.write_text("TYPESAFE_API_KEY=cle-de-test\n", encoding="utf-8")
+    main(["--rom", str(tmp_path / "absente.z5"), "--env-file", str(env_file), "--log-dir", str(tmp_path)])
+    assert "ignorées" not in capsys.readouterr().out
+
+
+def test_the_key_from_the_shell_wins_over_the_env_file(tmp_path, no_key, monkeypatch):
+    monkeypatch.setenv("TYPESAFE_API_KEY", "cle-du-shell")
+    env_file = tmp_path / ".env"
+    env_file.write_text("TYPESAFE_API_KEY=cle-du-fichier\n", encoding="utf-8")
+    main(["--rom", str(tmp_path / "absente.z5"), "--env-file", str(env_file), "--log-dir", str(tmp_path)])
+    assert os.environ["TYPESAFE_API_KEY"] == "cle-du-shell"
+
+
 def test_a_key_saved_as_env_dot_txt_gets_a_hint(tmp_path, no_key, capsys):
     (tmp_path / ".env.txt").write_text("TYPESAFE_API_KEY=cle-de-test\n", encoding="utf-8")
     code = main(["--env-file", str(tmp_path / ".env"), "--log-dir", str(tmp_path)])
