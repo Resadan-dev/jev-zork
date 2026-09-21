@@ -85,6 +85,11 @@ Sous Windows, le Bloc-notes ajoute volontiers `.txt` à un nom sans extension :
 le fichier devient `.env.txt` et n'est pas lu. `jev-zork` le détecte et dit de
 le renommer.
 
+`jev-zork` ne lit dans `.env` que `TYPESAFE_API_KEY`, et la variable
+d'environnement du shell, si elle existe, l'emporte. Un `.env` glissé dans un
+dossier cloné ne peut donc pas rediriger l'API (`TYPESAFE_BASE_URL`) pour
+détourner votre vraie clé.
+
 ## Jouer
 
 ```bat
@@ -231,6 +236,31 @@ node --test "replay/tests/*.test.js"
 - Le Noul « danger » et le Choice « intention » ne pilotent rien. Ce sont des
   lectures de la situation, pour la visualisation.
 
+## Licence
+
+Le code de ce dépôt est sous licence MIT (voir `LICENSE`).
+
+- **Jericho est sous GPL-2.0 ou ultérieure.** Le projet l'utilise sans le
+  contenir : chacun l'installe de son côté avec `scripts/setup_wsl.sh`. Une
+  distribution qui embarquerait les deux ensemble (image Docker, exécutable)
+  devrait respecter la GPL pour l'ensemble.
+- Les autres dépendances sont sous MIT ou BSD : SDK TypeSafe, rich,
+  python-dotenv, spaCy et son modèle.
+- **Zork I** est une œuvre d'Infocom, aujourd'hui propriété d'Activision. Son
+  code source est publié sous licence MIT dans le dépôt `historicalsource/zork1`.
+  Ce dépôt-ci ne contient pas la ROM : `scripts/setup_wsl.sh` la télécharge
+  depuis la suite de jeux de Jericho, en vérifiant son empreinte MD5.
+- Le lecteur de replay charge les polices IBM Plex (licence SIL OFL) depuis
+  Google Fonts : ouvrir `replay/index.html` envoie donc une requête à Google.
+- Projet indépendant, non affilié à TypeSafe ni à Activision. « Jev » est le
+  nom du modèle de TypeSafe.
+
+## Sécurité
+
+La clé TypeSafe ne vit que dans `.env`, qui n'est jamais versionné (ses
+variantes `.env.*` non plus). Les journaux de parties, la ROM et les vidéos ne
+le sont pas davantage. Pour signaler une vulnérabilité, voir `SECURITY.md`.
+
 ## Organisation
 
 ```
@@ -243,4 +273,6 @@ replay/            lecteur de replay : index.html, replay.css, replay-core.js
 video/             render_video.py (Playwright + ffmpeg)
 scripts/           setup_wsl.sh, play.sh
 jouer.cmd          lanceur Windows vers WSL
+LICENSE            licence MIT
+SECURITY.md        politique de sécurité
 ```

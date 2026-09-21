@@ -3,6 +3,8 @@ name = "jev-zork"
 version = "0.1.0"
 description = "Jev (TypeSafe System One) joue à Zork I : un Choice par coup sur les actions valides de Jericho."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
     # Jericho ne se compile que sous Linux ou macOS : sous Windows, on passe par WSL.
@@ -16,6 +18,10 @@ dependencies = [
     "python-dotenv>=1.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/Resadan-dev/jev-zork"
+Issues = "https://github.com/Resadan-dev/jev-zork/issues"
+
 [project.scripts]
 jev-zork = "jev_zork.cli:main"
 
@@ -26,7 +32,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling>=1.25"]
+requires = ["hatchling>=1.27"]  # 1.27 : champ license en expression SPDX (PEP 639)
 build-backend = "hatchling.build"
 
 [tool.hatch.metadata]
